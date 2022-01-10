@@ -69,7 +69,7 @@ shp_folder <- 'data/boundaries/uas_zones'
 full_export <- 'data/las/uas'
 grnd_export <- 'data/las/icp_registration'
 
-grndpt_csv_export <- 'data/las/icp_registration/n_grndpts.csv'
+grndpt_csv_export <- 'data/las/icp_registration/n_grndpts_temp.csv'
 
 
 
@@ -78,19 +78,19 @@ grndpt_csv_export <- 'data/las/icp_registration/n_grndpts.csv'
 # ==============================================================================
 
 las_files <- list.files(las_folder, pattern = 'raw') %>%
-  str_subset('ppwd', negate = TRUE)
+  str_subset('c9')
 
 # -------------------------- Setup cluster processing --------------------------
 
 
-cl <- makeCluster(10)
+cl <- makeCluster(9)
 registerDoParallel(cl)
 
 grnd_pts <- foreach (
   las_file = las_files,
   .combine = 'rbind',
   .packages = c('lidR', 'tidyverse', 'glue', 'sf'),
-  .export = c('las_folder', 'spec_folder', 'shp_folder', 'full_export', 'grnd_export')
+  .export = c('las_folder', 'full_export', 'grnd_export')
 ) %dopar% {
   
   # -------------------------- Read in matching data ---------------------------
@@ -116,24 +116,24 @@ grnd_pts <- foreach (
   
   shp_file <- list.files(
     shp_folder,
-    pattern = glue('c{campaign}_uas_zones.shp'),
+    pattern = glue('c{campaign}_uas_zones.shp$'),
     full.name = TRUE
   ) %>%
     st_read() %>%
     filter(zone == !!zone) %>%
-    st_transform(crs(las))
+    st_transform(crs(las)) %>%
+    st_zm() # drop Z value from polygon, produces error in clipping
   
   # ------------------- Prep uas las for classification ------------------------
   
   ndvi <- (nir - red) / (nir + red)
   
   las <- las %>%
-    filter_duplicates() %>%
-    clip_roi(shp_file)
-  
-  las <- las %>%
     merge_spatial(source = ndvi,
                   attribute = 'NDVI')
+  
+  las <- las %>%
+    filter_duplicates()
   
   # -------------------------- Ground classification ---------------------------
   
@@ -152,6 +152,9 @@ grnd_pts <- foreach (
   
   las@data <- las@data %>%
     mutate(Classification = replace(Classification, NDVI > 0.55, 1L))
+  
+  las <- las %>%
+    clip_roi(shp_file)
   
   writeLAS(las,
            glue("{full_export}/{str_replace(las_file, 'raw', 'clsfd')}"))
