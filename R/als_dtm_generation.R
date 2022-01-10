@@ -54,7 +54,7 @@ las_folder <- 'data/las/als'
 
 raster_output_folder <- 'data/dtm/als'
 
-las_output_folder <- 'data/las/icp_registration'
+las_output_folder <- 'data/las/icp_registration/als_dtm_las'
 
 
 # ==============================================================================

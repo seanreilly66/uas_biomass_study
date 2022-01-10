@@ -67,7 +67,7 @@ spec_folder <- 'data/spectral'
 shp_folder <- 'data/boundaries/uas_zones'
 
 full_export <- 'data/las/uas'
-grnd_export <- 'data/las/icp_registration'
+grnd_export <- 'data/las/icp_registration/uas_grnd_las'
 
 grndpt_csv_export <- 'data/las/icp_registration/n_grndpts_temp.csv'
 
