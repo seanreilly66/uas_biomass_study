@@ -177,3 +177,5 @@ grnd_pts <- foreach (
 write_csv(grnd_pts, grndpt_csv_export)
 
 stopCluster(cl)
+
+# ==============================================================================
