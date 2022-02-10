@@ -36,6 +36,7 @@
 
 library(lidR)
 library(tidyverse)
+library(ggpubr)
 library(glue)
 library(doParallel)
 library(readxl)
@@ -62,7 +63,7 @@ uas_files <- list.files(path = uas_las_folder,
                         pattern = 'uas_clsfd.las$',
                         full.names = TRUE)
 
-cl <- makeCluster(14)
+cl <- makeCluster(6)
 registerDoParallel(cl)
 
 grndpts <- foreach (
@@ -125,7 +126,7 @@ grndpts <- foreach (
   
   # --------------------- DTM based height normalization ---------------------
   
-  las <- normalize_height(las, als_dtm, na.rm = TRUE)
+  las <- normalize_height(las, als_dtm, na.rm = TRUE, add_lasattribute = TRUE)
   
   writeLAS(las, 
            file = str_replace(uas, 'clsfd', 'hnrm'))
@@ -214,10 +215,11 @@ for (c in unique(x$campaign)) {
 
 # This part requires manual manipulation from the user so should only be 
 # left out when sourcing previous sections of script.
-
+# 
 # dir <- 'data/las/uas'
 # 
-# uas_files <- list.files(dir, pattern = 'c6_z5_uas_reg_cnpy', full.names = TRUE)
+# uas_files <- list.files(dir, pattern = 'uas_reg', full.names = TRUE) %>%
+#   str_subset('c1_z9')
 # 
 # i = 1
 # 
@@ -231,10 +233,10 @@ for (c in unique(x$campaign)) {
 # print(z)
 # print(r)
 # 
-# uas <- readLAS(x, filter = '-keep_random_fraction 0.1')
+# uas <- readLAS(x, filter = '-keep_random_fraction 0.005')
 # 
 # als <- list.files('data/las/als', pattern = glue('c{c}_z{z}'), full.names = TRUE) %>%
-#   readLAS(filter = '-keep_random_fraction 0.5') %>%
+#   readLAS(filter = '-keep_random_fraction 0.05') %>%
 #   clip_roi(extent(uas))
 # 
 # y <- plot(als, colorPalette = 'grey')
@@ -243,3 +245,5 @@ for (c in unique(x$campaign)) {
 # i = i + 1
 # 
 # plot(uas)
+
+# ==============================================================================
