@@ -64,7 +64,8 @@ las_folder <- 'data/las/uas/raw'
 
 spec_folder <- 'data/spectral'
 
-shp_folder <- 'data/boundaries/uas_zones'
+shp_gdb <- 'data/boundaries/ssu_3dforests.gdb'
+shp_layer <- 'uas_zones'
 
 full_export <- 'data/las/uas'
 grnd_export <- 'data/las/icp_registration/uas_grnd_las'
@@ -77,13 +78,13 @@ grndpt_csv_export <- 'data/las/icp_registration/n_grndpts_temp.csv'
 # ========================== Classify ground points ============================
 # ==============================================================================
 
-las_files <- list.files(las_folder, pattern = 'raw') %>%
-  str_subset('c9')
+las_files <- list.files(las_folder, pattern = 'raw')
+las_file <- las_files[65]
 
 # -------------------------- Setup cluster processing --------------------------
 
 
-cl <- makeCluster(9)
+cl <- makeCluster(1)
 registerDoParallel(cl)
 
 grnd_pts <- foreach (
@@ -107,6 +108,27 @@ grnd_pts <- foreach (
   ) %>%
     raster()
   
+  green <- list.files(
+    spec_folder,
+    pattern = glue('c{campaign}_z{zone}_green.tif'),
+    full.names = TRUE
+  ) %>%
+    raster()
+  
+  blue <- list.files(
+    spec_folder,
+    pattern = glue('c{campaign}_z{zone}_blue.tif'),
+    full.names = TRUE
+  ) %>%
+    raster()
+  
+  rededge <- list.files(
+    spec_folder,
+    pattern = glue('c{campaign}_z{zone}_rededge.tif'),
+    full.names = TRUE
+  ) %>%
+    raster()
+  
   nir <- list.files(
     spec_folder,
     pattern = glue('c{campaign}_z{zone}_nir.tif'),
@@ -114,26 +136,63 @@ grnd_pts <- foreach (
   ) %>%
     raster()
   
-  shp_file <- list.files(
-    shp_folder,
-    pattern = glue('c{campaign}_uas_zones.shp$'),
-    full.name = TRUE
-  ) %>%
-    st_read() %>%
-    filter(zone == !!zone) %>%
+  shp_file <- st_read(shp_gdb, shp_layer) %>%
+    filter(zone == !!zone,
+           campaign == !!campaign) %>%
     st_transform(crs(las)) %>%
     st_zm() # drop Z value from polygon, produces error in clipping
   
-  # ------------------- Prep uas las for classification ------------------------
+  # ------------------------- Merge spectral data ------------------------------
+  
+  las <- las %>%
+    filter_duplicates()
+  
+  las <- las %>%
+    merge_spatial(source = blue,
+                  attribute = 'blue') %>%
+    add_lasattribute(name = 'blue', desc = 'blue')
+  
+  las <- las %>%
+    merge_spatial(source = green,
+                  attribute = 'green') %>%
+    add_lasattribute(name = 'green', desc = 'green')
+  
+  las <- las %>%
+    merge_spatial(source = red,
+                  attribute = 'red') %>%
+    add_lasattribute(name = 'red', desc = 'red')
+  
+  las <- las %>%
+    merge_spatial(source = rededge,
+                  attribute = 're') %>%
+    add_lasattribute(name = 're', desc = 're')
+  
+  las <- las %>%
+    merge_spatial(source = nir,
+                  attribute = 'nir') %>%
+    add_lasattribute(name = 'nir', desc = 'nir')
   
   ndvi <- (nir - red) / (nir + red)
   
   las <- las %>%
     merge_spatial(source = ndvi,
-                  attribute = 'NDVI')
+                  attribute = 'ndvi') %>%
+    add_lasattribute(name = 'ndvi', desc = 'ndvi')
+  
+  ndre <- (nir - rededge) / (nir + rededge)
   
   las <- las %>%
-    filter_duplicates()
+    merge_spatial(source = ndre,
+                  attribute = 'ndre') %>%
+    add_lasattribute(name = 'ndre', desc = 'ndre')
+  
+  gndvi <- (nir - green) / (nir + green)
+  
+  las <- las %>%
+    merge_spatial(source = gndvi,
+                  attribute = 'gndvi') %>%
+    add_lasattribute(name = 'gndvi', desc = 'gndvi')
+  
   
   # -------------------------- Ground classification ---------------------------
   
@@ -151,7 +210,7 @@ grnd_pts <- foreach (
   )
   
   las@data <- las@data %>%
-    mutate(Classification = replace(Classification, NDVI > 0.55, 1L))
+    mutate(Classification = replace(Classification, ndvi > 0.55, 1L))
   
   las <- las %>%
     clip_roi(shp_file)
