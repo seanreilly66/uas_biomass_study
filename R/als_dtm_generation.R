@@ -62,9 +62,10 @@ las_output_folder <- 'data/las/icp_registration/als_dtm_las'
 # ==============================================================================
 
 las_files <- list.files(las_folder, full.names = TRUE) %>%
-  str_subset('\\.las$')
+  str_subset('\\.las$') %>%
+  str_subset('c1')
 
-cl <- makeCluster(9)
+cl <- makeCluster(11)
 registerDoParallel(cl)
 
 foreach (
