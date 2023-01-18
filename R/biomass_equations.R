@@ -18,7 +18,7 @@ biomass <- function(species, DBH_cm, HT_m) {
     
   } else if (species == 'ARCMAN') {
     
-    TotalBiomass = exp(-5.584 + 2.697 * log(HT_m * 100)) * 1.87
+    TotalBiomass = NA
 
   } else if (species == 'HETARB') {
     

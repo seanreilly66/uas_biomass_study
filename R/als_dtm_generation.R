@@ -61,9 +61,7 @@ las_output_folder <- 'data/las/icp_registration/als_dtm_las'
 # ============================ Generate DTM formats ============================ 
 # ==============================================================================
 
-las_files <- list.files(las_folder, full.names = TRUE) %>%
-  str_subset('\\.las$') %>%
-  str_subset('c1')
+las_files <- list.files(las_folder, full.names = TRUE) 
 
 cl <- makeCluster(11)
 registerDoParallel(cl)
