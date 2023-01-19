@@ -1,8 +1,11 @@
-set.seed(3527)
-subjects <- sample(1:20, size = 80, replace = TRUE)
-table(subjects)
+# =================================== Libraries ================================
 
+library(tidyverse)
+library(geosphere)
+library(sf)
 
+# ==================================== Example =================================
+# Modified from https://rpubs.com/Sergio_Garcia/cluster_analysis_in_r
 
 lineup <- tibble(
   x = c(-1, -2, 8, 7, -12, -15, -13, 15, 21, 12, -25, 26), 
@@ -11,8 +14,7 @@ lineup <- tibble(
 
 ggplot(lineup, aes(x = x, y = y)) + 
   geom_point() +
-  geom_text(aes(label=id, x = x + 0.5)) +
-  # Assuming a 40x60 field
+  geom_text(aes(label = id, x = x + 0.5)) +
   lims(x = c(-30,30), y = c(-20, 20))
 
 m_dist <- dist(lineup)
@@ -28,3 +30,7 @@ c_lineup <- mutate(lineup, cluster = cut)
 
 ggplot(c_lineup, aes(x = x, y = y, color = factor(cluster))) +
   geom_point()
+
+# ============================ Coordinate clusters =============================
+
+shp <- read_sf('data/field_plots.shp')
