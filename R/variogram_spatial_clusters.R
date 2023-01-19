@@ -33,4 +33,11 @@ ggplot(c_lineup, aes(x = x, y = y, color = factor(cluster))) +
 
 # ============================ Coordinate clusters =============================
 
-shp <- read_sf('data/field_plots.shp')
+shp <- read_sf('data/temp/field_plots/field_plots_clusters.shp') %>%
+  mutate(across(starts_with('cl_'), as_factor))
+str(shp)
+
+shp %>%
+  filter(cl_44m == 20)
+  summary()
+
