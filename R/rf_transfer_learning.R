@@ -35,43 +35,66 @@
 # ==============================================================================
 
 library(doParallel)
-library(caret)
 library(tidyverse)
+library(sf)
+library(caret)
 library(glue)
 
 # ================================= User inputs ================================
 
-# Local file setup: 
+# Input files
 response_csv <- 'data/field/plot_field_metrics.csv'
-predictor_csv <- 'data/las/metrics/uas_plot_metrics.csv'
+uas_csv <- 'data/las/metrics/uas_plot_metrics.csv'
+spec_csv <- 'data/las/metrics/spectral_plot_metrics.csv'
+
+spatial_cluster_file <- 'data/temp/field_plots/field_plots_clusters.shp'
+cluster_lookup_file <- 'data/temp/field_plots/field_spcorrelation_cluster_lookup.csv'
+
+# Output
 
 output_file <- 'sdlmtn_transfer_learning_{type}_{format(timestamp, "%Y%m%d_%H%M")}'
 
+# Model training parameters
 
 k_folds <- 10
-rep <- 100
+rfe_rep <- 10
+training_rep <- 100
 n_tree <- 2000
 
 pre_process = c('center', 'scale')
 
 set_seed_val = 111
 
-n_cores = 18
+n_cores <- detectCores() - 5
 
 # ==============================================================================
-# =========================== Model setup and inputs ===========================
+# ============================== Data preparation ==============================
 # ==============================================================================
+
+# Load inputs
+
+spatial_cluster <- read_sf(spatial_cluster_file) %>%
+  mutate(across(c('campaign', 'plot'), as.numeric)) %>%
+  st_drop_geometry() %>%
+  as_tibble() 
+
+cluster_lookup <- read_csv(cluster_lookup_file)
 
 response_df <- read_csv(response_csv) %>%
   mutate(cc = 100-densiometer_mean) %>%
   select(-densiometer_mean)
 
+uas_df <- read_csv(uas_csv)
+spec_df <- read_csv(spec_csv)
+predictor_df <- uas_df %>%
+  left_join(spec_df) 
+
+# Extract variable names
+
 response_var <- response_df %>%
   select(-site, -campaign, -plot) %>%
   colnames() %>%
   str_subset('_n', negate = TRUE)
-
-predictor_df <- read_csv(predictor_csv)
 
 predictor_var <- predictor_df %>%
   select(-campaign, -plot, -method) %>%
@@ -79,43 +102,29 @@ predictor_var <- predictor_df %>%
 
 n_predictors <- length(predictor_var)
 
+# Generate combined df for modelling
+
 model_df <- response_df %>%
   left_join(predictor_df) %>%
+  left_join(spatial_cluster) %>%
   filter(site != 'sdlmtn')
 
 test_df <- response_df %>%
   left_join(predictor_df) %>%
   filter(site == 'sdlmtn')
 
-rm(response_df, predictor_df)
+rm(response_df, predictor_df, spatial_cluster, uas_df, spec_df)
 
 
-# -------------------------------- Control setup -------------------------------
-
-train_ctrl <- trainControl(
-  method = "repeatedcv",
-  number = k_folds,
-  repeats = rep
-)
-
-rfe_ctrl <- trainControl(
-  method = "cv",
-  number = k_folds)
-
-rf_ctrl <- rfeControl(
-  functions = rfFuncs,
-  method = "repeatedcv",
-  number = k_folds,
-  repeats = rep
-)
-
-# ------------------------------- Log file setup ------------------------------- 
+# ==============================================================================
+# =============================== Log file setup ===============================
+# ==============================================================================
 
 timestamp <- Sys.time()
 
 log_text <- glue(
 '=====================================================================
-Saddle Mountain transfer learning testing with RF from UAS metrics
+Randomf Forest transfer learning testing from UAS metrics
 =====================================================================
 
 author: Sean Reilly
@@ -123,39 +132,38 @@ initiated: {format(timestamp, "%Y-%m-%d %H:%M")}
 
 =============================== Inputs ==============================
 
-package = randomForest
-
 working directory: {getwd()}
-predictor df: {predictor_csv}
+predictor df: {uas_csv}, {spec_csv}
 response df: {response_csv}
 
 n predictors: {n_predictors}
-
 
 data preprocessing: {glue_collapse(pre_process, sep= ", ")}
 
 ========================== Model parameters =========================
 
-repeats: {rep}
+test site: Saddle Mountain
+
+rfe repeats: {rfe_rep}
+training repeats: {training_rep}
 set seed: {set_seed_val}
 k folds: {k_folds}
-ntree: {n_tree}
 
 Random Forest from randomForest package with RFE trained 
-across mtry and ntree grid. Optimal model based on minimum RMSE value 
-from cross validation.
+across mtry and ntree grid. Optimal model based on minimum RMSE 
+value from cross validation using spatial clusters.
 
 '
 )
 
 # ==============================================================================
-# =============================== Model Testing ================================
+# ================================== Modelling ================================= 
 # ==============================================================================
 
-rfe_profile = list()
+ml_rfe = list()
 ml_models = list()
-ml_best = list()
 ml_results = list()
+ml_best = list()
 test_predictions = list()
 test_results = list()
 
@@ -171,123 +179,27 @@ for (response_i in response_var) {
   
   message('Response variable: ', response_i)
   
-  # ----------------------------------------------------------------------------
-  # -------------------------- Random Forest with RFE --------------------------
-  # ----------------------------------------------------------------------------
+  log_text <- log_text + '
   
-  # ----------------------------- Data input setup -----------------------------
+_____________________________________________________________________
+{response_i}
+_____________________________________________________________________
+'
+  # ---------------------------- Model input setup -----------------------------
   
   input_df <- model_df %>%
-    filter(!is.na(!!sym(response_i))) %>%
-    select(all_of(c(response_i, predictor_var))) %>%
-    as.data.frame()
+    filter(!is.na(!!sym(response_i)))
   
   input_df[is.na(input_df)] <-  -9999
   
-  # ----------------------------------- RFE ------------------------------------ 
+  ml_predictor <- input_df %>%
+    select(all_of(predictor_var)) %>%
+    as.data.frame()
   
-  cl <- makeCluster(n_cores)
-  registerDoParallel(cl)
+  ml_response <- input_df %>%
+    pull(response_i)
   
-  set.seed(set_seed_val)
-  
-  message('Random forest RFE')
-  
-  ml_profile <- rfe(
-    x = input_df %>%
-      select(all_of(predictor_var)),
-    y = input_df %>%
-      pull(response_i),
-    sizes = c(1:n_predictors),
-    rfeControl = rf_ctrl,
-    preProcess = pre_process,
-    metric = "RMSE",
-    trControl = rfe_ctrl
-  )
-  
-  stopCluster(cl)
-  
-  ml_var <- predictors(ml_profile)
-  
-  rfe_profile[[glue('{response_i}_rf_rfe')]] <- ml_profile
-
-  # ------------------------------- Training ---------------------------------
-  
-  cl <- makeCluster(n_cores)
-  registerDoParallel(cl)
-  
-  set.seed(set_seed_val)
-  
-  message('RF model training')
-  
-  ml_train <- train(
-    x = input_df %>%
-      select(all_of(ml_var)),
-    y = input_df %>%
-      pull(response_i),
-    method = "rf",
-    preProcess = pre_process,
-    trControl = train_ctrl,
-    ntree = n_tree,
-    tuneLength = length(ml_var) - 1,
-    metric = "RMSE"
-  )
-  
-  stopCluster(cl)
-  
-  ml_models[[glue('{response_i}_sdlmtn_transfer')]] <- ml_train
-  
-  ml_results[[glue('{response_i}_sdlmtn_transfer')]] <-
-    ml_train$results %>%
-    add_column(
-      response_var = response_i,
-      method = 'rf',
-      rfe = TRUE,
-      ntree = n_tree,
-      tune_length = length(ml_var) - 1,
-      k_folds = k_folds,
-      repeats = rep,
-      seed = set_seed_val,
-      .before = 1
-    )
-  
-  ml_stats <- ml_train$results %>%
-    semi_join(ml_train$bestTune) %>%
-    add_column(
-      response_var = response_i,
-      method = 'rf',
-      rfe = TRUE,
-      ntree = n_tree,
-      tune_length = length(ml_var) - 1,
-      k_folds = k_folds,
-      repeats = rep,
-      seed = set_seed_val,
-      .before = 1
-    )
-
-  ml_best[[glue('{response_i}_sdlmtn_transfer')]] <- ml_stats
-  
-  log_text <- log_text +
-    '\n
-random forest with RFE model results
----------------------------------------------------------------------
-n samples: {nrow(input_df)}
-
-RFE:
-n variables: {length(ml_var)}
-
-Results:
-
-RMSE: {ml_stats$RMSE}
-R2: {ml_stats$Rsquared}
-MAE: {ml_stats$MAE}
-'
-  
-  # ----------------------------------------------------------------------------
-  # ------------------------------- Model Testing ------------------------------
-  # ----------------------------------------------------------------------------
-  
-  # ----------------------------- Data input setup -----------------------------
+  # ---------------------------- Testing data setup ----------------------------
   
   test_input_df <- test_df %>%
     filter(!is.na(!!sym(response_i))) %>%
@@ -296,7 +208,130 @@ MAE: {ml_stats$MAE}
   
   test_input_df[is.na(test_input_df)] <-  -9999
   
-  # ---------------------------------- Predict ---------------------------------
+  # --------------------- Repeated grouped K fold indexing ---------------------
+  
+  cluster_name <- cluster_lookup %>%
+    filter(variable == response_i) %>%
+    pull(cluster)
+  
+  cluster_index <- pull(input_df, cluster_name)
+  
+  set.seed(set_seed_val)
+  
+  rfe_folds <- list()
+  
+  for(i in 1:rfe_rep) {
+    
+    i_folds <- groupKFold(group = cluster_index, k = k_folds)
+    
+    pad_rep <- str_pad(i, nchar(rfe_rep), side = 'left', pad = '0')
+    names(i_folds) <- sprintf('%s.Rep%s', names(i_folds), pad_rep)
+    
+    rfe_folds <- append(rfe_folds, i_folds)
+    
+  }
+  
+  train_folds <- list()
+  
+  for(i in 1:training_rep) {
+    
+    i_folds <- groupKFold(group = cluster_index, k = k_folds)
+    
+    pad_rep <- str_pad(i, nchar(training_rep), side = 'left', pad = '0')
+    names(i_folds) <- sprintf('%s.Rep%s', names(i_folds), pad_rep)
+    
+    train_folds <- append(train_folds, i_folds)
+    
+  }
+  
+  # ----------------------------------------------------------------------------
+  # ------------------------------- Random Forest ------------------------------ 
+  # ----------------------------------------------------------------------------
+  
+  # ----------------------------------- RFE ------------------------------------
+  
+  cl <- makeCluster(n_cores)
+  registerDoParallel(cl)
+  
+  set.seed(set_seed_val)
+  
+  message('RFE initiated: ', Sys.time())
+  
+  ml_profile <- rfe(
+    x = ml_predictor,
+    y = ml_response,
+    sizes = c(1:n_predictors),
+    rfeControl = rfeControl(
+      functions = rfFuncs,
+      index = rfe_folds
+    ),
+    preProcess = pre_process,
+    metric = "RMSE"
+  )
+
+  stopCluster(cl)
+  
+  ml_var <- predictors(ml_profile)
+  
+  ml_rfe[[glue('{response_i}_rf_rfe_spatial_folds')]] <- ml_profile
+
+  # ------------------------------- Training ---------------------------------
+  
+  cl <- makeCluster(n_cores)
+  registerDoParallel(cl)
+  
+  set.seed(set_seed_val)
+  
+  message('RF initiated: ', Sys.time())
+  
+  ml_train <- train(
+    x = ml_predictor,
+    y = ml_response,
+    method = "rf",
+    preProcess = pre_process,
+    trControl = trainControl(
+      index = train_folds),
+    ntree = n_tree,
+    tuneLength = length(ml_var) - 1,
+    metric = "RMSE"
+  )
+  
+  stopCluster(cl)
+  
+  ml_models[[glue('{response_i}_rf_sdlmtn_transfer_spatial_cluster')]] <- ml_train
+  
+  ml_results[[glue('{response_i}_sdlmtn_transfer_spatial_cluster')]] <-
+    ml_train$results %>%
+    add_column(
+      response_var = response_i,
+      method = 'rf_rfe',
+      .before = 1
+    )
+  
+  ml_stats <- ml_train$results %>%
+    semi_join(ml_train$bestTune) %>%
+    add_column(
+      response_var = response_i,
+      method = 'rf_rfe',
+      .before = 1
+    )
+
+  ml_best[[glue('{response_i}_rf_sdlmtn_transfer_spatial_cluster')]] <- ml_stats
+  
+  log_text <- log_text +
+    '
+
+n samples: {nrow(input_df)}
+RFE variables: {length(ml_var)}
+  
+MODEL RESULTS:
+
+RMSE: {ml_stats$RMSE}
+R2: {ml_stats$Rsquared}
+MAE: {ml_stats$MAE}
+'
+  
+  # ------------------------------- Model Testing ------------------------------
   
   predictions = predict(ml_train, test_input_df)
   
@@ -304,29 +339,28 @@ MAE: {ml_stats$MAE}
     as.list() %>%
     as_tibble()
   
-  test_results[[glue('{response_i}_sdlmtn_transfer')]] <- test_stats %>%
+  test_results[[glue('{response_i}_rf_sdlmtn_transfer')]] <- test_stats %>%
     add_column(
       response_var = response_i,
+      method = 'rf_rfe',
       .before = 1
     )
   
-  test_predictions[[glue('{response_i}_sdlmtn_transfer')]] <- tibble(
+  test_predictions[[glue('{response_i}_rf_sdlmtn_transfer')]] <- tibble(
     response_var = response_i,
     predict_val = predictions,
     field_val = pull(test_input_df, response_i)
   )
   
   log_text <- log_text +
-    '\n
-transfer learning testing
----------------------------------------------------------------------
-Results:
+    '
+
+TRANSFER LEARNING RESULTS:
 
 RMSE: {test_stats$RMSE}
 R2: {test_stats$Rsquared}
 MAE: {test_stats$MAE}
 '
-  
   
 }
   
