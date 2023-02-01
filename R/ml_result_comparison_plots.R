@@ -48,8 +48,9 @@ input_df_file <- ('data/ml_result_master.csv')
 # ==============================================================================
 
 input_df <- read_csv(input_df_file) %>%
-  mutate(across(c('Field_Metric', 'Site', 'Method'), as.factor))
-
+  mutate(across(c('Field_Metric', 'Site', 'Method'), as.factor)) %>%
+  mutate(Field_Metric  = fct_relevel(Field_Metric,
+                                     'LAI', 'CBD', 'CC', 'CBH', 'Mean height', 'Biomass'))
 min_max <- input_df %>%
   group_by(Field_Metric, Site) %>%
   summarize(min_r2 = min(R2, na.rm = T),
@@ -109,10 +110,10 @@ ggplot() +
   scale_color_manual(values = c('black', 'firebrick', '#DDCC77'),
                      labels = c('LM Forward', 'Random Forest', 'SVM')) +
   xlim(0,1) +
-  labs(x = bquote('R'^2),
+  labs(x = bquote(italic(R)^2),
        color = NULL,
        y = NULL) +
-  theme(legend.position = c(0.25, 0.2))
+  theme(legend.position = c(0.25, 0.8))
 
 ggsave(
   filename = 'figures/manuscript/ml_r2_all_comparison.png',
