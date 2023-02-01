@@ -3,7 +3,7 @@ library(caret)
 library(randomForest)
 library(ggpubr)
 
-ml <- readRDS('data/ml_output/rf_svm_testing_model_20220323_1124.RData')
+ml <- readRDS('data/ml_output/rf_spatial_cluster_model_20230126_1326.RData')
 
 varimp_plot <- function(.data, plot_label, slice_n = 5) {
   
@@ -35,7 +35,7 @@ varimp_plot <- function(.data, plot_label, slice_n = 5) {
         yend = Predictor
       ),
       linetype = 'dashed',
-      size = 0.6
+      linewidth = 0.6
     ) +
     labs(x = NULL, 
          y = NULL,
@@ -51,38 +51,38 @@ theme_set(
     text = element_text(family = 'serif', face = 'plain'),
     axis.title = element_text(size = 16),
     axis.text = element_text(size = 14),
-    line = element_line(size = 1),
+    line = element_line(linewidth = 1),
     axis.line = element_line(),
     panel.background = element_rect(color = 'white'),
     legend.title = element_text(size = 16),
     legend.text = element_text(size = 14),
     legend.key = element_blank(),
     legend.spacing = unit(0, "cm"),
-    legend.margin = margin(0, 5, 0, 5),
+    legend.margin = ggplot2::margin(0, 5, 0, 5),
     title = element_text(size = 12.8)
   )
 )
 
 
 
-lai <- ml$lai_mean_rf_rfe %>%
+lai <- ml$lai_mean_rf_rfe_spatial_folds %>%
   varimp_plot(plot_label = 'f) LAI')
 
-cbd <- ml$cbd_mean_rf_rfe %>%
+cbd <- ml$cbd_mean_rf_rfe_spatial_folds %>%
   varimp_plot(plot_label = 'e) CBD')
 
-cbh <- ml$cbh_rf_rfe %>%
+cbh <- ml$cbh_rf_rfe_spatial_folds %>%
   varimp_plot(plot_label = 'c) CBH') +
   scale_x_continuous(labels = NULL)
 
-cc <- ml$densiometer_mean_rf_rfe %>%
+cc <- ml$densiometer_mean_rf_rfe_spatial_folds %>%
   varimp_plot(plot_label = 'd) CC')
 
-h <- ml$h_mean_rf_rfe %>%
+h <- ml$h_mean_rf_rfe_spatial_folds %>%
   varimp_plot(plot_label = 'b) Mean height') +
   scale_x_continuous(labels = NULL)
 
-biomass <- ml$biomass_sum_rf_rfe %>%
+biomass <- ml$biomass_sum_rf_rfe_spatial_folds %>%
   varimp_plot(plot_label = 'a) Biomass') +
   scale_x_continuous(labels = NULL)
 
