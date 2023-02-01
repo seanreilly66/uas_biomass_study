@@ -52,7 +52,7 @@ cluster_lookup_file <- 'data/temp/field_plots/field_spcorrelation_cluster_lookup
 
 # Output
 
-output_file <- 'sdlmtn_transfer_learning_{type}_{format(timestamp, "%Y%m%d_%H%M")}'
+output_file <- 'rf_transfer_learning_{type}_{format(timestamp, "%Y%m%d_%H%M")}'
 
 # Model training parameters
 
@@ -65,7 +65,7 @@ pre_process = c('center', 'scale')
 
 set_seed_val = 111
 
-n_cores <- detectCores() - 5
+n_cores <- detectCores() - 3
 
 # ==============================================================================
 # ============================== Data preparation ==============================
@@ -80,9 +80,7 @@ spatial_cluster <- read_sf(spatial_cluster_file) %>%
 
 cluster_lookup <- read_csv(cluster_lookup_file)
 
-response_df <- read_csv(response_csv) %>%
-  mutate(cc = 100-densiometer_mean) %>%
-  select(-densiometer_mean)
+response_df <- read_csv(response_csv)
 
 uas_df <- read_csv(uas_csv)
 spec_df <- read_csv(spec_csv)
@@ -124,7 +122,7 @@ timestamp <- Sys.time()
 
 log_text <- glue(
 '=====================================================================
-Randomf Forest transfer learning testing from UAS metrics
+Random Forest transfer learning testing from UAS metrics
 =====================================================================
 
 author: Sean Reilly
@@ -369,7 +367,7 @@ MAE: {test_stats$MAE}
 # ============================ Complete processing ===========================
 # ============================================================================
 
-saveRDS(rfe_profile, glue('data/ml_output/{glue(output_file, type = "rfe")}.RData'))
+saveRDS(ml_rfe, glue('data/ml_output/{glue(output_file, type = "rfe")}.RData'))
 saveRDS(ml_models, glue('data/ml_output/{glue(output_file, type = "model")}.RData'))
 
 bind_rows(ml_results) %>%
