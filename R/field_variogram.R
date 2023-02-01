@@ -36,14 +36,26 @@ field_data <- left_join(field_data, field_loc)
 var_names = c('biomass_sum', 'h_mean', 'cbh', 'densiometer_mean', 'cbd_mean', 'lai_mean')
 
 field_data <- field_data %>%
-  select(x, y, all_of(var_names)) 
+  select(x, y, campaign, all_of(var_names)) 
 
 var_labels = tibble(col_name = var_names,
                     label = c('Biomass', 'Mean height', 'CBH', 'CC', 'CBD', 'LAI'))
 
+# Campaign filter
+
+campaigns = unique(field_data$campaign)
+field_data2 <- field_data
+
+c_i = 2
+
+field_data <- field_data2 %>%
+  filter(campaign == campaigns[c_i])
+
 
 
 # ============================== gstat variogram ===============================
+
+
 
 plots_list <- list()
 plot_label <- list()
@@ -72,7 +84,7 @@ gstat_var <- variogram(as.formula(glue('{field_var} ~ 1')),
 
 plot(gstat_var)
 
-gstat_fit <- fit.variogram(gstat_var, vgm(39, mdl, 50))
+gstat_fit <- fit.variogram(gstat_var, vgm(500, mdl, 2000))
 gstat_fit
 
 gstat_fit_line <- variogramLine(gstat_fit, maxdist = 5000)
@@ -104,7 +116,7 @@ plots_list[[field_var]] <- ggplot(mapping = aes(x = dist, y = gamma)) +
             label.size = NA,
             size = 5)
 
-i = i+1
+i = i + 1
 
 
 
