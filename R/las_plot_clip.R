@@ -81,15 +81,10 @@ foreach (
   uas_file_name <- uas_files %>%
     str_subset(glue('c{info$campaign}_z{info$zone}_'))
   
-  als_file_name <- als_files %>%
-    str_subset(glue('c{info$campaign}_z{info$zone}_'))
-  
   uas <-  uas_file_name %>%
-    readLAS() %>%
-    clip_roi(plot_i)
+    readLAS() 
   
-  als <- als_file_name %>%
-    readLAS() %>%
+  x = uas %>%
     clip_roi(plot_i)
   
   writeLAS(
@@ -98,6 +93,13 @@ foreach (
       str_replace(uas_folder, output_folder) %>%
       str_replace('z[:digit:]+', glue('p{info$plot}'))
   )
+  
+  als_file_name <- als_files %>%
+    str_subset(glue('c{info$campaign}_z{info$zone}_'))
+  
+  als <- als_file_name %>%
+    readLAS() %>%
+    clip_roi(plot_i)
   
   writeLAS(
     las = als,
