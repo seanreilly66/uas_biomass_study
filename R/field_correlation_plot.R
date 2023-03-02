@@ -71,6 +71,9 @@ input_df <- field_data_file %>%
 cormat <- input_df %>%
   cor(use = 'na.or.complete')
 
+pmat <- input_df %>%
+  psych::corr.test(use = 'na.or.complete')
+
 dd <- stats::as.dist((1 - cormat)/2)
 hc <- stats::hclust(dd, method = 'complete')
 
