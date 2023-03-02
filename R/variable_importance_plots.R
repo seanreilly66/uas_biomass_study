@@ -3,7 +3,7 @@ library(caret)
 library(randomForest)
 library(ggpubr)
 
-ml <- readRDS('data/ml_output/rf_spatial_cluster_model_20230126_1326.RData')
+ml <- readRDS('data/ml_output/rf_spatial_cluster_model_20230224_1153.RData')
 
 varimp_plot <- function(.data, plot_label, slice_n = 5) {
   
