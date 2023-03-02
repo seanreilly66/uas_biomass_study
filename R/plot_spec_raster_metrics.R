@@ -19,7 +19,7 @@ shp_layer <- 'field_plots'
 spectral_folder <- 'data/spectral'
 
 c_output <- 'data/las/metrics/spectral_plot_metrics_c{i_c}.csv'
-final_output <- 'data/las/metrics/spectral_plot_metrics.csv'
+final_output <- 'data/las/metrics/spectral_plot_metrics_temp.csv'
 
 n_cores <- detectCores() - 2
 
@@ -106,7 +106,8 @@ r_values <- foreach (
       rename_with(.cols = names(r),
                   .fn = ~ glue('{names(r)}_sd'))
     
-    r_join <- left_join(r_mean, r_sd)
+    r_join <- left_join(r_mean, r_sd) %>%
+      add_column(zone = j_z)
     
   }
   
