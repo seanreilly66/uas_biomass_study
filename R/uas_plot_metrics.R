@@ -46,7 +46,7 @@ library(doParallel)
 # ================================= User inputs ================================
 
 uas_las_folder <- 'data/las/plots'
-output_file <- 'data/las/metrics/uas_plot_metrics.csv'
+output_file <- 'data/las/metrics/uas_plot_metrics_temp.csv'
 
 # ============================= Point cloud metrics ============================
 
@@ -75,8 +75,8 @@ uas_metrics <- foreach (
         r = red,
         g = green,
         b = blue,
-        re = re,
-        nir = nir,
+        re = red_edge,
+        nir = near_ir,
         ndvi = ndvi,
         ndre = ndre,
         gndvi = gndvi
