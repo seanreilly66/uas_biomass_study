@@ -68,7 +68,7 @@ theme_set(
     text = element_text(family = 'serif', face = 'plain'),
     axis.title = element_text(size = 16),
     axis.text = element_text(size = 14),
-    line = element_line(size = 1),
+    line = element_line(linewidth = 1),
     axis.line = element_line(),
     panel.background = element_rect(color = 'white'),
     legend.title = element_text(size = 16),
@@ -96,7 +96,7 @@ ggplot() +
       yend = Field_Metric
     ),
     linetype = 'dashed',
-    size = 0.6
+    linewidth = 0.6
   ) +
   geom_point(
     data = input_df %>%
