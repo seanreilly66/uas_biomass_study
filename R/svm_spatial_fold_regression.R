@@ -10,12 +10,13 @@ library(glue)
 # ================================= User inputs ================================
 # ==============================================================================
 
+rm(list=ls())
+
 # Input files
 
 response_csv <- 'data/field/plot_field_metrics.csv'
 uas_csv <- 'data/las/metrics/uas_plot_metrics.csv'
 spec_csv <- 'data/las/metrics/spectral_plot_metrics.csv'
-# sma_csv <- 'data/las/metrics/sma_plot_metrics.csv'
 
 spatial_cluster_file <- 'data/temp/field_plots/field_plots_clusters.shp'
 cluster_lookup_file <- 'data/temp/field_plots/field_spcorrelation_cluster_lookup.csv'
@@ -53,12 +54,9 @@ response_df <- read_csv(response_csv)
 
 uas_df <- read_csv(uas_csv)
 spec_df <- read_csv(spec_csv)
-# sma_df <- read_csv(sma_csv) 
+
 predictor_df <- uas_df %>%
   left_join(spec_df) 
-
-# %>%
-#   left_join(sma_df)
   
 
 # Extract variable names
@@ -245,7 +243,8 @@ for (response_i in response_var) {
   message('SVM initiated: ', Sys.time())
   
   ml_train <- train(
-    x = ml_predictor,
+    x = ml_predictor %>%
+      select(all_of(ml_var)),
     y = ml_response,
     method = "svmRadial",
     preProcess = pre_process,
