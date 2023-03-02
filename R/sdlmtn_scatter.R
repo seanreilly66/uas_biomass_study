@@ -1,10 +1,10 @@
 library(tidyverse)
 library(ggpubr)
 
-predictions <- 'data/ml_output/rf_transfer_learning_predictions_20230131_1040.csv' %>%
+predictions <- 'data/ml_output/rf_transfer_learning_predictions_20230226_1124.csv' %>%
   read_csv()
 
-stats <- 'data/ml_output/rf_transfer_learning_test_results_20230131_1040.csv' %>%
+stats <- 'data/ml_output/rf_transfer_learning_test_results_20230226_1124.csv' %>%
   read_csv()
 
 # ================================ GGplot theme ================================ 
@@ -74,28 +74,28 @@ sctr_plot = function(response_var_input, .data = predictions, lab = stats) {
 
 biomass = sctr_plot('biomass_sum') +
   labs(title = bquote('a) Biomass'))
-# biomass
+biomass
 
 h = sctr_plot('h_mean')  +
   labs(title = bquote('b) Mean height'))
-# h
+h
 
 
 cbh = sctr_plot('cbh') +
   labs(title = bquote('c) CBH'))
-# cbh
+cbh
 
-cc = sctr_plot('cc') +
+cc = sctr_plot('densiometer_mean') +
   labs(title = bquote('d) CC'))
-# cc
+cc
 
 lai = sctr_plot('lai_mean')  +
   labs(title = bquote('f) LAI'))
-# lai
+lai
 
 cbd = sctr_plot('cbd_mean')  +
   labs(title = bquote('e) CBD'))
-# cbd
+cbd
 
 
 sdl_fig <- ggarrange(
@@ -109,7 +109,7 @@ sdl_fig <- ggarrange(
     bottom = text_grob('Field measurements', family = 'serif', size = 16))
 
 
-# sdl_fig
+sdl_fig
 
 
 
