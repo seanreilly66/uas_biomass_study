@@ -283,7 +283,8 @@ _____________________________________________________________________
   message('RF initiated: ', Sys.time())
   
   ml_train <- train(
-    x = ml_predictor,
+    x = ml_predictor %>%
+      select(all_of(ml_var)),
     y = ml_response,
     method = "rf",
     preProcess = pre_process,
@@ -398,4 +399,4 @@ finished: {format(Sys.time(), "%Y-%m-%d %H:%M")}
 
 write(log_text, glue('data/log_files/{glue(output_file, type = "log")}.txt'))
 
-# ==============================================================================
+ # ==============================================================================
