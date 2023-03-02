@@ -15,7 +15,6 @@ library(glue)
 response_csv <- 'data/field/plot_field_metrics.csv'
 uas_csv <- 'data/las/metrics/uas_plot_metrics.csv'
 spec_csv <- 'data/las/metrics/spectral_plot_metrics.csv'
-# sma_csv <- 'data/las/metrics/sma_plot_metrics.csv'
 
 spatial_cluster_file <- 'data/temp/field_plots/field_plots_clusters.shp'
 cluster_lookup_file <- 'data/temp/field_plots/field_spcorrelation_cluster_lookup.csv'
@@ -56,12 +55,10 @@ response_df <- read_csv(response_csv)
 
 uas_df <- read_csv(uas_csv)
 spec_df <- read_csv(spec_csv)
-# sma_df <- read_csv(sma_csv) 
+
 predictor_df <- uas_df %>%
   left_join(spec_df) 
 
-# %>%
-#   left_join(sma_df)
 
 
 # Remove correlated variables
@@ -226,92 +223,93 @@ for (response_i in response_var) {
 
   }
 
-  # ----------------------------------- RFE ------------------------------------
-
-  cl <- makeCluster(n_cores)
-  registerDoParallel(cl)
-
-  set.seed(set_seed_val)
-
-  message('RFE initiated: ', Sys.time())
-
-  ml_profile <- rfe(
-    x = ml_predictor,
-    y = ml_response,
-    sizes = 1:n_predictors,
-    rfeControl = rfeControl(
-      functions = lmFuncs,
-      index = rfe_folds
-    ),
-    preProcess = pre_process,
-    metric = "RMSE"
-  )
-
-  stopCluster(cl)
-
-  ml_var <- predictors(ml_profile)
-
-  ml_rfe[[glue('{response_i}_lm_rfe_spatial_folds')]] <- ml_profile
-
-  # Training 
-
-  cl <- makeCluster(n_cores)
-  registerDoParallel(cl)
-
-  set.seed(set_seed_val)
-
-  message('LM RFE initiated: ', Sys.time())
-
-  ml_train <- train(
-    x = ml_predictor,
-    y = ml_response,
-    method = "lm",
-    preProcess = pre_process,
-    trControl = trainControl(
-      index = train_folds),
-    metric = "RMSE"
-  )
-
-  stopCluster(cl)
-
-  ml_models[[glue('{response_i}_lm_rfe_spatial_folds')]] <- ml_train
-
-  ml_results[[glue('{response_i}_lm_rfe_spatial_folds')]] <-
-    ml_train$results %>%
-    add_column(response_var = response_i,
-               method = 'lm_rfe_spatial_folds',
-               .before = 1)
-
-  ml_stats <- ml_train$results %>%
-    semi_join(ml_train$bestTune) %>%
-    add_column(response_var = response_i,
-               method = 'lm_rfe_spatial_folds',
-               .before = 1)
-
-  ml_best[[glue('{response_i}_lm_rfe_spatial_folds')]] <- ml_stats
-
-  log_text <- log_text +
-    '\n
-spatial cluster: {cluster_name}
-n samples: {nrow(input_df)}
-  
----------------------------------------------------------------------
-RFE
----------------------------------------------------------------------
-
-RFE:
-n variables: {length(ml_var)}
-
-Results:
-
-RMSE: {ml_stats$RMSE}
-R2: {ml_stats$Rsquared}
-MAE: {ml_stats$MAE}
-
-'
+#   # ----------------------------------- RFE ------------------------------------
+# 
+#   cl <- makeCluster(n_cores)
+#   registerDoParallel(cl)
+# 
+#   set.seed(set_seed_val)
+# 
+#   message('RFE initiated: ', Sys.time())
+# 
+#   ml_profile <- rfe(
+#     x = ml_predictor,
+#     y = ml_response,
+#     sizes = 1:n_predictors,
+#     rfeControl = rfeControl(
+#       functions = lmFuncs,
+#       index = rfe_folds
+#     ),
+#     preProcess = pre_process,
+#     metric = "RMSE"
+#   )
+# 
+#   stopCluster(cl)
+# 
+#   ml_var <- predictors(ml_profile)
+# 
+#   ml_rfe[[glue('{response_i}_lm_rfe_spatial_folds')]] <- ml_profile
+# 
+#   # Training 
+# 
+#   cl <- makeCluster(n_cores)
+#   registerDoParallel(cl)
+# 
+#   set.seed(set_seed_val)
+# 
+#   message('LM RFE initiated: ', Sys.time())
+# 
+#   ml_train <- train(
+#     x = ml_predictor,
+#     y = ml_response,
+#     method = "lm",
+#     preProcess = pre_process,
+#     trControl = trainControl(
+#       index = train_folds),
+#     metric = "RMSE"
+#   )
+# 
+#   stopCluster(cl)
+# 
+#   ml_models[[glue('{response_i}_lm_rfe_spatial_folds')]] <- ml_train
+# 
+#   ml_results[[glue('{response_i}_lm_rfe_spatial_folds')]] <-
+#     ml_train$results %>%
+#     add_column(response_var = response_i,
+#                method = 'lm_rfe_spatial_folds',
+#                .before = 1)
+# 
+#   ml_stats <- ml_train$results %>%
+#     semi_join(ml_train$bestTune) %>%
+#     add_column(response_var = response_i,
+#                method = 'lm_rfe_spatial_folds',
+#                .before = 1)
+# 
+#   ml_best[[glue('{response_i}_lm_rfe_spatial_folds')]] <- ml_stats
+# 
+#   log_text <- log_text +
+#     '\n
+# spatial cluster: {cluster_name}
+# n samples: {nrow(input_df)}
+#   
+# ---------------------------------------------------------------------
+# RFE
+# ---------------------------------------------------------------------
+# 
+# RFE:
+# n variables: {length(ml_var)}
+# 
+# Results:
+# 
+# RMSE: {ml_stats$RMSE}
+# R2: {ml_stats$Rsquared}
+# MAE: {ml_stats$MAE}
+# 
+# '
   # ------------------------------ LM modelling ------------------------------ 
   
-  lm_method = c('lm', 'leapBackward', 'leapForward', 'leapSeq')
+  # lm_method = c('lm', 'leapBackward', 'leapForward', 'leapSeq')
+  lm_method = c('leapForward', 'leapSeq', 'leapBackward')
   
   for (lm_i in lm_method) {
     
