@@ -13,16 +13,20 @@ library(glue)
 # Input files
 
 response_csv <- 'data/field/plot_field_metrics.csv'
-uas_csv <- 'data/las/metrics/uas_plot_metrics.csv'
-spec_csv <- 'data/las/metrics/spectral_plot_metrics.csv'
-# sma_csv <- 'data/las/metrics/sma_plot_metrics.csv'
+# uas_csv <- 'data/las/metrics/uas_plot_metrics.csv'
+# spec_csv <- 'data/las/metrics/spectral_plot_metrics.csv'
 
 spatial_cluster_file <- 'data/temp/field_plots/field_plots_clusters.shp'
 cluster_lookup_file <- 'data/temp/field_plots/field_spcorrelation_cluster_lookup.csv'
 
 # Output
 
-output_file <- 'rf_spatial_cluster_{type}_{format(timestamp, "%Y%m%d_%H%M")}'
+# output_file <- 'rf_spatial_cluster_{type}_{format(timestamp, "%Y%m%d_%H%M")}'
+
+output_file <- 'rf_spectral_height_metric_{type}_{format(timestamp, "%Y%m%d_%H%M")}'
+uas_csv = 'data/las/metrics/uas_plot_spectral_height_metrics.csv'
+spec_csv = 'ommitted'
+pred_type = 'Spectral height'
 
 # Model training parameters
 
@@ -51,15 +55,13 @@ cluster_lookup <- read_csv(cluster_lookup_file)
 
 response_df <- read_csv(response_csv)
 
-uas_df <- read_csv(uas_csv)
-spec_df <- read_csv(spec_csv)
-# sma_df <- read_csv(sma_csv)
+# uas_df <- read_csv(uas_csv)
+# spec_df <- read_csv(spec_csv)
+# 
+# predictor_df <- uas_df %>%
+#   left_join(spec_df)
 
-predictor_df <- uas_df %>%
-  left_join(spec_df) 
-
-# %>%
-#   left_join(sma_df)
+predictor_df <- read_csv(uas_csv)
 
 # Extract variable names
 
@@ -95,6 +97,7 @@ log_text <- glue(
   '=====================================================================
 Random Forest w/ RFE canopy fuels prediction from UAS metrics
 Folds generated with spatial grouping
+{pred_type} predictors only
 =====================================================================
 
 author: Sean Reilly
@@ -131,18 +134,22 @@ k folds: {k_folds}
 # ================================== Modelling ================================= 
 # ==============================================================================
 
-##### Testing setup #####
+# ##### Testing setup #####
 # log_text = log_text + '
 # #### ###### TESTING RUN ###### ####
 # 
 # '
+# model_df <- model_df %>%
+#   add_column(foo = 1)
+# 
 # response_var = response_var[1:2]
-# predictor_var <- predictor_var[1:5]
+# predictor_var <- predictor_var[1:5] %>%
+#   append('foo')
 # n_predictors = length(predictor_var)
 # 
 # response_i = response_var[1]
-
-#####
+# 
+# #####
 
 ml_rfe = list()
 ml_models = list()
@@ -214,7 +221,7 @@ for (response_i in response_var) {
 
   set.seed(set_seed_val)
 
-  message('RFE')
+  message('RFE initiated: ', Sys.time())
 
   ml_profile <- rfe(
     x = ml_predictor,
@@ -241,10 +248,11 @@ for (response_i in response_var) {
 
   set.seed(set_seed_val)
 
-  message('Random forest')
+  message('Random forest initiated: ', Sys.time())
 
   ml_train <- train(
-    x = ml_predictor,
+    x = ml_predictor %>%
+      select(all_of(ml_var)),
     y = ml_response,
     method = "rf",
     preProcess = pre_process,
