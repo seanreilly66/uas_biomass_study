@@ -69,7 +69,7 @@ fig_rf = ggplot(data = input_df) +
       color = Site
     ),
     linetype = 'dashed',
-    size = 1
+    linewidth = 1
   ) +
   geom_point(mapping = aes(
     x = r2,
@@ -78,7 +78,7 @@ fig_rf = ggplot(data = input_df) +
     color = Site
   ),
   size = 4) +
-  scale_color_manual(values = c('firebrick', 'black'), 
+  scale_color_manual(values = c('firebrick', '#DDCC77'), 
                      breaks = c('0.15', '-0.15'),
                      labels = c('LaTour', 'Jackson'),
                      name = NULL) +
