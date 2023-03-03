@@ -140,7 +140,7 @@ ggplot(data = input_df %>%
       yend = Field_Metric
     ),
     linetype = 'dashed',
-    size = 0.6
+    linewidth = 0.6
   ) +
   geom_point(
     data = min_max %>%
@@ -148,7 +148,7 @@ ggplot(data = input_df %>%
       select(-Site),
     mapping = aes(x = max_r2,
                   y = Field_Metric,
-                  shape = 'All site max'
+                  shape = 'All site RF max'
     ),
     size = 4
   ) +
