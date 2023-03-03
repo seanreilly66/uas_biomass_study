@@ -3,7 +3,7 @@ library(caret)
 library(randomForest)
 library(ggpubr)
 
-ml <- readRDS('data/ml_output/rf_spatial_cluster_model_20230224_1153.RData')
+ml <- readRDS('data/ml_output/rf_spatial_cluster_model_20230227_1528.RData')
 
 varimp_plot <- function(.data, plot_label, slice_n = 5) {
   
@@ -98,7 +98,7 @@ varimp_fig <- ggarrange(
     left = text_grob('Top variables', family = 'serif', size = 16, rot = 90),
     bottom = text_grob('                   Scaled variable importance', family = 'serif', size = 16))
   
-
+varimp_fig
 
 ggsave(
   filename = 'figures/manuscript/rf_variable_importance.png',
