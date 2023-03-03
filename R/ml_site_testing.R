@@ -201,7 +201,7 @@ for (response_i in response_var) {
 
 '
     
-    # ---------------------------- Model input setup -----------------------------
+    # --------------------------- Model input setup ----------------------------
     
     input_df <- model_df %>%
       filter(site == site_i) %>%
@@ -215,14 +215,14 @@ for (response_i in response_var) {
     ml_response <- input_df %>%
       pull(response_i)
     
-    # ----------------------------------- RFE ------------------------------------
+    # --------------------------- Random Forest RFE ----------------------------
     
     cl <- makeCluster(n_cores)
     registerDoParallel(cl)
     
     set.seed(set_seed_val)
     
-    message('RFE initiated ', Sys.time())
+    message('RF initiated ', Sys.time())
     
     ml_profile <- rfe(
       x = ml_predictor,
@@ -244,14 +244,10 @@ for (response_i in response_var) {
     
     ml_rfe[[glue('{response_i}_{site_i}_rf_rfe')]] <- ml_profile
     
-    # -------------------------------- Training ----------------------------------
-    
     cl <- makeCluster(n_cores)
     registerDoParallel(cl)
     
     set.seed(set_seed_val)
-    
-    message('Random forest initiated: ', Sys.time())
     
     ml_train <- train(
       x = ml_predictor %>%
@@ -293,6 +289,9 @@ for (response_i in response_var) {
     
     log_text <- log_text +
       '\n
+-------------------------------------------------------------------------   
+Random Forest RFE
+    
 n samples: {nrow(input_df)}
 
 RFE:
@@ -305,6 +304,159 @@ R2: {ml_stats$Rsquared}
 MAE: {ml_stats$MAE}
 
 '
+    
+    # -------------------------------- SVM RFE ---------------------------------
+    
+    cl <- makeCluster(n_cores)
+    registerDoParallel(cl)
+    
+    set.seed(set_seed_val)
+    
+    message('SVM initiated ', Sys.time())
+    
+    ml_profile <- rfe(
+      x = ml_predictor %>%
+        as.data.frame(),
+      y = ml_response,
+      sizes = c(1:n_predictors),
+      rfeControl = rfeControl(
+        functions = caretFuncs,
+        method = "repeatedcv",
+        number = k_folds,
+        repeats = rfe_rep
+      ),
+      method = 'svmRadial',
+      preProcess = pre_process,
+      metric = "RMSE"
+    )
+    
+    stopCluster(cl)
+    
+    ml_var <- predictors(ml_profile)
+    
+    ml_rfe[[glue('{response_i}_{site_i}_svm_rfe')]] <- ml_profile
+    
+    cl <- makeCluster(n_cores)
+    registerDoParallel(cl)
+    
+    set.seed(set_seed_val)
+    
+    ml_train <- train(
+      x = ml_predictor %>%
+        select(all_of(ml_var)) %>%
+        as.data.frame(),
+      y = ml_response,
+      method = "svmRadial",
+      preProcess = c('center', 'scale'),
+      trControl = trainControl(method = "repeatedcv",
+                               number = k_folds,
+                               repeats = training_rep),
+      metric = "RMSE"
+    )
+    
+    stopCluster(cl)
+    
+    ml_models[[glue('{response_i}_{site_i}_svm_rfe')]] <- ml_train
+    
+    ml_results[[glue('{response_i}_{site_i}_svm_rfe')]] <-
+      ml_train$results %>%
+      add_column(
+        response_var = response_i,
+        site = site_i,
+        method = 'svm_rfe',
+        .before = 1
+      )
+    
+    ml_stats <- ml_train$results %>%
+      semi_join(ml_train$bestTune) %>%
+      add_column(
+        response_var = response_i,
+        site = site_i,
+        method = 'svm_rfe',
+        .before = 1
+      )
+    
+    ml_best[[glue('{response_i}_{site_i}_svm_rfe')]] <- ml_stats
+    
+    log_text <- log_text +
+      '\n
+-------------------------------------------------------------------------   
+SVM RFE
+    
+n samples: {nrow(input_df)}
+
+RFE:
+n variables: {length(ml_var)}
+
+Results:
+
+RMSE: {ml_stats$RMSE}
+R2: {ml_stats$Rsquared}
+MAE: {ml_stats$MAE}
+
+'
+    # ------------------------------- LM Forward -------------------------------
+    
+    message('LM initiated: ', Sys.time())
+    
+    cl <- makeCluster(n_cores)
+    registerDoParallel(cl)
+    
+    set.seed(set_seed_val)
+    
+    ml_train <- train(
+      x = ml_predictor,
+      y = ml_response,
+      method = 'leapForward',
+      preProcess = pre_process,
+      trControl = trainControl(method = "repeatedcv",
+                               number = k_folds,
+                               repeats = training_rep),
+      metric = "RMSE"
+    )
+    
+    stopCluster(cl)
+    
+    ml_models[[glue('{response_i}_{site_i}_lm_forward')]] <- ml_train
+    
+    ml_results[[glue('{response_i}_{site_i}_lm_forward')]] <-
+      ml_train$results %>%
+      add_column(
+        response_var = response_i,
+        site = site_i,
+        method = 'lm_forward',
+        .before = 1
+      )
+    
+    ml_stats <- ml_train$results %>%
+      semi_join(ml_train$bestTune) %>%
+      add_column(
+        response_var = response_i,
+        site = site_i,
+        method = 'lm_forward',
+        .before = 1
+      )
+    
+    ml_best[[glue('{response_i}_{site_i}_lm_forward')]] <- ml_stats
+    
+    log_text <- log_text +
+      '\n
+-------------------------------------------------------------------------   
+LM Forward
+    
+n samples: {nrow(input_df)}
+
+RFE:
+n variables: {length(ml_var)}
+
+Results:
+
+RMSE: {ml_stats$RMSE}
+R2: {ml_stats$Rsquared}
+MAE: {ml_stats$MAE}
+
+'
+
     
   }
 }
