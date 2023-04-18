@@ -54,7 +54,7 @@ theme_set(
     text = element_text(family = 'serif', face = 'plain'),
     axis.title = element_text(size = 16),
     axis.text = element_text(size = 14),
-    line = element_line(size = 1),
+    line = element_line(linewidth = 1),
     axis.line = element_line(),
     panel.background = element_rect(color = 'white'),
     legend.title = element_text(size = 16),
@@ -70,7 +70,7 @@ gg_theme = theme(
   text = element_text(family = 'serif', face = 'plain'),
   axis.title = element_text(size = 16),
   axis.text = element_text(size = 14),
-  line = element_line(size = 1),
+  line = element_line(linewidth = 1),
   axis.line = element_line(),
   panel.background = element_rect(color = 'white'),
   legend.title = element_text(size = 16),
@@ -153,7 +153,7 @@ plot_func <- function(plot_metric = 'Biomass') {
 
 biomass <- 'biomass_sum' %>%
   plot_func() +
-  labs(y = 'Biomass') +
+  labs(y = 'Biomass\n(Mg)') +
   ylim(0, NA)
 
 biomass
@@ -183,9 +183,11 @@ ggsave(
   dpi = 700
 )
 
+bquote('Canopy Bulk Density\n'('kg m'^3))
+
 cbd <- 'cbd_mean' %>%
   plot_func() +
-  labs(y = 'Canopy Bulk Density') +
+  labs(y = expression(atop('Canopy bulk density', paste('(kg ', m^3, ')')))) +
   ylim(0, NA)
 
 cbd
