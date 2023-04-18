@@ -5,6 +5,7 @@ library(tidyverse)
 library(sf)
 library(caret)
 library(glue)
+library(MLmetrics)
 
 # ==============================================================================
 # ================================= User inputs ================================
@@ -13,20 +14,20 @@ library(glue)
 # Input files
 
 response_csv <- 'data/field/plot_field_metrics.csv'
-# uas_csv <- 'data/las/metrics/uas_plot_metrics.csv'
-# spec_csv <- 'data/las/metrics/spectral_plot_metrics.csv'
+uas_csv <- 'data/las/metrics/uas_plot_metrics.csv'
+spec_csv <- 'data/las/metrics/spectral_plot_metrics.csv'
 
 spatial_cluster_file <- 'data/temp/field_plots/field_plots_clusters.shp'
 cluster_lookup_file <- 'data/temp/field_plots/field_spcorrelation_cluster_lookup.csv'
 
 # Output
 
-# output_file <- 'rf_spatial_cluster_{type}_{format(timestamp, "%Y%m%d_%H%M")}'
+output_file <- 'rf_spatial_cluster_{type}_{format(timestamp, "%Y%m%d_%H%M")}'
 
-output_file <- 'rf_spectral_height_metric_{type}_{format(timestamp, "%Y%m%d_%H%M")}'
-uas_csv = 'data/las/metrics/uas_plot_spectral_height_metrics.csv'
-spec_csv = 'ommitted'
-pred_type = 'Spectral height'
+# output_file <- 'rf_spectral_height_metric_{type}_{format(timestamp, "%Y%m%d_%H%M")}'
+# uas_csv = 'data/las/metrics/uas_plot_spectral_height_metrics.csv'
+# spec_csv = 'data/las/metrics/rgb_plot_metrics.csv'
+pred_type = 'Full dataset'
 
 # Model training parameters
 
@@ -55,13 +56,13 @@ cluster_lookup <- read_csv(cluster_lookup_file)
 
 response_df <- read_csv(response_csv)
 
-# uas_df <- read_csv(uas_csv)
-# spec_df <- read_csv(spec_csv)
-# 
-# predictor_df <- uas_df %>%
-#   left_join(spec_df)
+uas_df <- read_csv(uas_csv)
+spec_df <- read_csv(spec_csv)
 
-predictor_df <- read_csv(uas_csv)
+predictor_df <- uas_df %>%
+  left_join(spec_df)
+
+# predictor_df <- read_csv(uas_csv)
 
 # Extract variable names
 
@@ -177,6 +178,18 @@ for (response_i in response_var) {
 
   ml_response <- input_df %>%
     pull(response_i)
+  
+  # ----------------------------- Summary function ----------------------------- 
+  
+  summary_func <- function(data, lev = NULL, model = NULL) {
+    c(
+      MAPE = MLmetrics::MAPE(data$pred, data$obs),
+      RMSE = MLmetrics::RMSE(data$pred, data$obs),
+      MSE = MLmetrics::MSE(data$pred, data$obs),
+      MAE = MLmetrics::MAE(data$pred, data$obs),
+      R2 = summary(lm(pred ~ obs, data))$r.squared
+    )
+  }
 
   # --------------------- Repeated grouped K fold indexing ---------------------
 
@@ -257,7 +270,8 @@ for (response_i in response_var) {
     method = "rf",
     preProcess = pre_process,
     trControl = trainControl(
-      index = train_folds),
+      index = train_folds,
+      summaryFunction = summary_func),
     ntree = 1000,
     tuneLength = 100,
     metric = "RMSE"
@@ -292,9 +306,11 @@ n variables: {length(ml_var)}
 Results:
 
 RMSE: {ml_stats$RMSE}
-R2: {ml_stats$Rsquared}
+R2: {ml_stats$R2}
+  
+MAPE: {ml_stats$MAPE}
 MAE: {ml_stats$MAE}
-
+MSE: {ml_stats$MSE}
 '
 }
 

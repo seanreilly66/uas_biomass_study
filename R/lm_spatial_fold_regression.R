@@ -186,6 +186,18 @@ for (response_i in response_var) {
 
   ml_response <- input_df %>%
     pull(response_i)
+  
+  # ----------------------------- Summary function ----------------------------- 
+  
+  summary_func <- function(data, lev = NULL, model = NULL) {
+    c(
+      MAPE = MLmetrics::MAPE(data$pred, data$obs),
+      RMSE = MLmetrics::RMSE(data$pred, data$obs),
+      MSE = MLmetrics::MSE(data$pred, data$obs),
+      MAE = MLmetrics::MAE(data$pred, data$obs),
+      R2 = summary(lm(pred ~ obs, data))$r.squared
+    )
+  }
 
   # --------------------- Repeated grouped K fold indexing ---------------------
 
@@ -243,7 +255,8 @@ for (response_i in response_var) {
       method = lm_i,
       preProcess = pre_process,
       trControl = trainControl(
-        index = train_folds),
+        index = train_folds,
+        summaryFunction = summary_func),
       metric = "RMSE"
     )
     
@@ -271,9 +284,14 @@ for (response_i in response_var) {
 {lm_i}
 ---------------------------------------------------------------------
 
+Results:
+
 RMSE: {ml_stats$RMSE}
-R2: {ml_stats$Rsquared}
+R2: {ml_stats$R2}
+  
+MAPE: {ml_stats$MAPE}
 MAE: {ml_stats$MAE}
+MSE: {ml_stats$MSE}
 
 '
   }

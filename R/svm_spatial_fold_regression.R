@@ -10,8 +10,6 @@ library(glue)
 # ================================= User inputs ================================
 # ==============================================================================
 
-rm(list=ls())
-
 # Input files
 
 response_csv <- 'data/field/plot_field_metrics.csv'
@@ -169,6 +167,18 @@ for (response_i in response_var) {
   ml_response <- input_df %>%
     pull(response_i)
   
+  # ----------------------------- Summary function ----------------------------- 
+  
+  summary_func <- function(data, lev = NULL, model = NULL) {
+    c(
+      MAPE = MLmetrics::MAPE(data$pred, data$obs),
+      RMSE = MLmetrics::RMSE(data$pred, data$obs),
+      MSE = MLmetrics::MSE(data$pred, data$obs),
+      MAE = MLmetrics::MAE(data$pred, data$obs),
+      R2 = summary(lm(pred ~ obs, data))$r.squared
+    )
+  }
+  
   # --------------------- Repeated grouped K fold indexing ---------------------
   
   cluster_name <- cluster_lookup %>%
@@ -249,7 +259,8 @@ for (response_i in response_var) {
     method = "svmRadial",
     preProcess = pre_process,
     trControl = trainControl(
-      index = train_folds),
+      index = train_folds,
+      summaryFunction = summary_func),
     metric = "RMSE"
   )
   
@@ -283,11 +294,15 @@ RFE
 RFE:
 n variables: {length(ml_var)}
 
+
 Results:
 
 RMSE: {ml_stats$RMSE}
-R2: {ml_stats$Rsquared}
+R2: {ml_stats$R2}
+  
+MAPE: {ml_stats$MAPE}
 MAE: {ml_stats$MAE}
+MSE: {ml_stats$MSE}
 
 '
 
